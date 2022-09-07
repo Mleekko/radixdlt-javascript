@@ -27,12 +27,11 @@ export const createWallet = (
 	})
 }
 
-export const makeWalletWithFunds = (network: Network): WalletT => {
-	return Wallet.create({
+export const makeWalletWithFunds = (network: Network): WalletT =>
+	Wallet.create({
 		signingKeychain: makeSigningKeyChainWithFunds(),
 		network,
 	})
-}
 
 export type KeystoreForTest = {
 	keystore: KeystoreT

@@ -67,6 +67,17 @@ export const uint256FromUnsafe = (
 	}
 }
 
+export const uint256FromBigInteger = (
+	attos: string,
+): Result<UInt256, Error> => {
+	// eslint-disable-next-line functional/no-try-statement
+	try {
+		return ok(new UInt256(attos, 10))
+	} catch (e) {
+		return err(e as Error)
+	}
+}
+
 export const bnFromUInt256 = (uint256: UInt256): BN =>
 	new BN(uint256.toString(16), 'hex')
 

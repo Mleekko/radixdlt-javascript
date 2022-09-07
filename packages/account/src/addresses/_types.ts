@@ -34,3 +34,10 @@ export type ValidatorAddressT = AbstractAddressT &
 		addressType: AddressTypeT.VALIDATOR
 		equals: (other: ValidatorAddressT) => boolean
 	}>
+
+export type AccountAddressWrapperT = Readonly<{
+	addressType: AddressTypeT.ACCOUNT
+	getAddress: () => AccountAddressT
+	getAddressString: () => string
+	equals: (other: AccountAddressWrapperT) => boolean
+}>

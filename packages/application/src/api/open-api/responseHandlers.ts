@@ -33,8 +33,9 @@ import {
 	ValidatorAddressT,
 	AccountAddress,
 	AccountAddressT,
+	AccountAddressWrapperT,
 } from '@radixdlt/account'
-import { Amount, AmountT, Network } from '@radixdlt/primitives'
+import {Amount, AmountT, AmountWrapperT, Network, uint256FromBigInteger} from '@radixdlt/primitives'
 import {
 	ActionType,
 	ExecutedAction,
@@ -49,8 +50,9 @@ import {
 import { ok, combine } from 'neverthrow'
 import { Message } from '@radixdlt/crypto'
 
+
 const transformTokenAmount = (amount: TokenAmount) => [
-	Amount.fromUnsafe(amount.value),
+	<Result<AmountWrapperT, Error>>ok(Amount.wrap(amount.value)),
 	ResourceIdentifier.fromUnsafe(amount.token_identifier.rri),
 ]
 
@@ -67,8 +69,8 @@ export const handleTokenInfoResponse = (
 ): Result<TokenInfoEndpoint.DecodedResponse, Error[]> =>
 	combine([
 		ResourceIdentifier.fromUnsafe(json.data.token.token_identifier.rri),
-		Amount.fromUnsafe(json.data.token.token_properties.granularity),
-		Amount.fromUnsafe(json.data.token.token_supply.value),
+		uint256FromBigInteger(json.data.token.token_properties.granularity),
+		uint256FromBigInteger(json.data.token.token_supply.value),
 	])
 		.map(values => ({
 			name: json.data.token.token_properties.name ?? '',
@@ -92,8 +94,8 @@ export const handleNativeTokenResponse = (
 ): Result<NativeTokenInfoEndpoint.DecodedResponse, Error[]> =>
 	combine([
 		ResourceIdentifier.fromUnsafe(json.data.token.token_identifier.rri),
-		Amount.fromUnsafe(json.data.token.token_properties.granularity),
-		Amount.fromUnsafe(json.data.token.token_supply.value),
+		uint256FromBigInteger(json.data.token.token_properties.granularity),
+		uint256FromBigInteger(json.data.token.token_supply.value),
 	])
 		.map(values => ({
 			name: json.data.token.token_properties.name ?? '',
@@ -115,7 +117,7 @@ export const handleNativeTokenResponse = (
 const transformStakeEntry = (stake: AccountStakeEntry) =>
 	combine([
 		ValidatorAddress.fromUnsafe(stake.validator_identifier.address),
-		Amount.fromUnsafe(stake.delegated_stake.value),
+		uint256FromBigInteger(stake.delegated_stake.value),
 	]).map(value => ({
 		validator: value[0] as ValidatorAddressT,
 		amount: value[1] as AmountT,
@@ -124,7 +126,7 @@ const transformStakeEntry = (stake: AccountStakeEntry) =>
 const transformUnstakeEntry = (unstake: AccountUnstakeEntry) =>
 	combine([
 		ValidatorAddress.fromUnsafe(unstake.validator_identifier.address),
-		Amount.fromUnsafe(unstake.unstaking_amount.value),
+		uint256FromBigInteger(unstake.unstaking_amount.value),
 		ok<number, Error>(unstake.epochs_until_unlocked),
 	]).map(value => ({
 		validator: value[0] as ValidatorAddressT,
@@ -145,10 +147,8 @@ export const handleStakePositionsResponse = (
 
 export const handleUnstakePositionsResponse = (
 	json: ReturnOfAPICall<'accountUnstakesPost'>,
-): Result<UnstakePositionsEndpoint.DecodedResponse, Error[]> => {
-	return combine(
-		json.data.pending_unstakes.map(transformUnstakeEntry),
-	)
+): Result<UnstakePositionsEndpoint.DecodedResponse, Error[]> =>
+	combine(json.data.pending_unstakes.map(transformUnstakeEntry))
 		.map(pendingUnstakes =>
 			combine(json.data.unstakes.map(transformUnstakeEntry)).map(
 				unstakes => ({
@@ -159,7 +159,6 @@ export const handleUnstakePositionsResponse = (
 		)
 		.andThen(res => res)
 		.mapErr(e => [e])
-}
 
 export const handleAccountTransactionsResponse = (
 	json: ReturnOfAPICall<'accountTransactionsPost'>,
@@ -233,8 +232,8 @@ const transformValidator = (validator: ValidatorRaw) =>
 		AccountAddress.fromUnsafe(
 			validator.properties.owner_account_identifier.address,
 		),
-		Amount.fromUnsafe(validator.stake.value),
-		Amount.fromUnsafe(validator.info.owner_stake.value),
+		uint256FromBigInteger(validator.stake.value),
+		uint256FromBigInteger(validator.info.owner_stake.value),
 	]).map(
 		(values): ValidatorEndpoint.DecodedResponse => ({
 			address: values[0] as ValidatorAddressT,
@@ -259,7 +258,7 @@ export const handleAccountBalancesResponse = (
 	const liquidBalancesResults = combine(
 		json.data.account_balances.liquid_balances.map(balance =>
 			combine([
-				Amount.fromUnsafe(balance.value),
+				uint256FromBigInteger(balance.value),
 				ResourceIdentifier.fromUnsafe(balance.token_identifier.rri),
 			]).map(values => ({
 				value: values[0] as AmountT,
@@ -276,7 +275,7 @@ export const handleAccountBalancesResponse = (
 			json.data.account_balances.staked_and_unstaking_balance
 				.token_identifier.rri,
 		),
-		Amount.fromUnsafe(
+		uint256FromBigInteger(
 			json.data.account_balances.staked_and_unstaking_balance.value,
 		),
 	])
@@ -312,13 +311,13 @@ export const handleValidatorsResponse = (
 		.mapErr(e => [e])
 
 /*
-	
+
 export const handleStakePositionsResponse = (
 	json: ReturnOfAPICall<'accountStakesPost'>,
 ) => combine([
-	
+
 ]).mapErr(e => [e])
-	
+
 json.stakes.map(stake => combine([
 	ValidatorAddress.fromUnsafe(stake.validatorIdentifier.address),
 	Amount.fromUnsafe(stake.delegatedStake.value)
@@ -326,7 +325,7 @@ json.stakes.map(stake => combine([
 	validator: values[0] as ValidatorAddressT,
 	amount: values[1] as AmountT
 })
-	
+
 	export const handleUnstakePositionsResponse = (
 		json: ReturnOfAPICall<'accountUnstakesPost'>,
 	) =>
@@ -346,7 +345,7 @@ json.stakes.map(stake => combine([
 					'unstakes',
 				]),
 			)
-	
+
 	export const handleAccountTransactionsResponse = (
 		json: ReturnOfAPICall<'accountTransactionsPost'>,
 	) =>
@@ -366,7 +365,7 @@ json.stakes.map(stake => combine([
 					'transactions',
 				]),
 			)
-	
+
 	export const handleValidatorResponse = (
 		json: ReturnOfAPICall<'validatorPost'>,
 	) =>
@@ -381,7 +380,7 @@ json.stakes.map(stake => combine([
 					'validator',
 				]),
 			)
-	
+
 	export const handleValidatorsResponse = (
 		json: ReturnOfAPICall<'validatorsPost'>,
 	) =>
@@ -396,7 +395,7 @@ json.stakes.map(stake => combine([
 					'validators',
 				]),
 			)
-	
+
 	export const handleTransactionRulesResponse = (
 		json: ReturnOfAPICall<'transactionRulesPost'>,
 	) =>
@@ -419,7 +418,7 @@ json.stakes.map(stake => combine([
 export const handleBuildTransactionResponse = (
 	json: ReturnOfAPICall<'transactionBuildPost'>,
 ): Result<BuildTransactionEndpoint.DecodedResponse, Error[]> =>
-	Amount.fromUnsafe(json.data.transaction_build.fee.value)
+	uint256FromBigInteger(json.data.transaction_build.fee.value)
 		.map(amount => ({
 			transaction: {
 				blob: json.data.transaction_build.unsigned_transaction,
@@ -459,15 +458,15 @@ const handleTx = (
 	const transformAction = (action: Action): Result<ExecutedAction, Error> => {
 		const transformTransferTokenAction = (action: TransferTokens) =>
 			combine([
-				AccountAddress.fromUnsafe(action.to_account.address),
-				AccountAddress.fromUnsafe(action.from_account.address),
+				AccountAddress.fromUnsafeLazy(action.to_account.address),
+				AccountAddress.fromUnsafeLazy(action.from_account.address),
 				...(action.amount ? transformTokenAmount(action.amount) : []),
 			]).map(
 				(actionValue): ExecutedTransferTokensAction => ({
 					type: ActionType.TOKEN_TRANSFER,
-					to_account: actionValue[0] as AccountAddressT,
-					from_account: actionValue[1] as AccountAddressT,
-					amount: actionValue[2] as AmountT,
+					to_account: actionValue[0] as AccountAddressWrapperT,
+					from_account: actionValue[1] as AccountAddressWrapperT,
+					amount: actionValue[2] as AmountWrapperT,
 					rri: actionValue[3] as ResourceIdentifierT,
 				}),
 			)
@@ -483,12 +482,12 @@ const handleTx = (
 			]).map((actionValue):
 				| ExecutedStakeTokensAction
 				| ExecutedUnstakeTokensAction => ({
-					type,
-					amount: actionValue[0] as AmountT,
-					rri: actionValue[1] as ResourceIdentifierT,
-					to_validator: actionValue[2] as ValidatorAddressT,
-					from_account: actionValue[3] as AccountAddressT,
-				}))
+				type,
+				amount: (actionValue[0] as AmountWrapperT).getUInt(),
+				rri: actionValue[1] as ResourceIdentifierT,
+				to_validator: actionValue[2] as ValidatorAddressT,
+				from_account: actionValue[3] as AccountAddressT,
+			}))
 
 		const transformUnstakeTokenAction = (
 			type: ActionType.UNSTAKE_TOKENS,
@@ -502,13 +501,13 @@ const handleTx = (
 			]).map((actionValue):
 				| ExecutedStakeTokensAction
 				| ExecutedUnstakeTokensAction => ({
-					type,
-					from_validator: actionValue[0] as ValidatorAddressT,
-					to_account: actionValue[1] as AccountAddressT,
-					unstake_percentage: actionValue[2] as AmountT,
-					amount: actionValue[3] as AmountT,
-					rri: actionValue[4] as ResourceIdentifierT,
-				}))
+				type,
+				from_validator: actionValue[0] as ValidatorAddressT,
+				to_account: actionValue[1] as AccountAddressT,
+				unstake_percentage: actionValue[2] as AmountT,
+				amount: actionValue[3] as AmountT,
+				rri: actionValue[4] as ResourceIdentifierT,
+			}))
 
 		switch (action.type) {
 			case 'TransferTokens':
@@ -528,6 +527,22 @@ const handleTx = (
 		}
 	}
 
+	const removeDoubleEncoding = (message: string): string => {
+		const isLegacyMessage = /^(3030|3031)[0-9a-fA-F]+$/.test(message)
+		if (isLegacyMessage) {
+			try {
+				const m = Message.plaintextToString(
+					Buffer.from(message, 'hex'),
+					0
+				)
+				return m
+			} catch (e) {
+				// ignore
+			}
+		}
+		return message
+	}
+
 	return combine([
 		TransactionIdentifier.create(transaction.transaction_identifier.hash),
 		ok(
@@ -536,7 +551,7 @@ const handleTx = (
 				: null,
 		),
 		Amount.fromUnsafe(transaction.fee_paid.value),
-		ok(transaction.metadata.message ?? ''),
+		ok(removeDoubleEncoding(transaction.metadata.message ?? '')),
 		combine(transaction.actions.map(transformAction)).map(actions => ({
 			actions,
 		})),

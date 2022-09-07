@@ -63,9 +63,9 @@ export enum APIErrorCause {
 const APIError =
 	(cause: APIErrorCause) =>
 	(error: any): APIError => ({
-		cause,
-		...error,
-	})
+	cause,
+	...error,
+})
 
 export const nodeError = (error: Error): ErrorT<'node'> => ({
 	cause: NodeErrorCause.GET_NODE_FAILED,

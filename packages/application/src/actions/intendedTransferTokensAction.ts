@@ -10,8 +10,9 @@ import {
 	ResourceIdentifierT,
 	ResourceIdentifier,
 	isResourceIdentifierOrUnsafeInput,
+	AccountAddressWrapperT,
 } from '@radixdlt/account'
-import { Amount, AmountT, isAmountOrUnsafeInput } from '@radixdlt/primitives'
+import {Amount, AmountT, isAmountOrUnsafeInput} from '@radixdlt/primitives'
 import { combine, Result } from 'neverthrow'
 
 export const isTransferTokensInput = (
@@ -30,21 +31,21 @@ const create = (
 	from_account: AccountAddressT,
 ): Result<IntendedTransferTokensAction, Error> =>
 	combine([
-		AccountAddress.fromUnsafe(input.to_account),
+		AccountAddress.fromUnsafeLazy(input.to_account),
 		Amount.fromUnsafe(input.amount),
 		ResourceIdentifier.fromUnsafe(input.tokenIdentifier),
 	]).map(
 		(resultList): IntendedTransferTokensAction => {
-			const to_account = resultList[0] as AccountAddressT
+			const to_account = resultList[0] as AccountAddressWrapperT
 			const amount = resultList[1] as AmountT
 			const rri = resultList[2] as ResourceIdentifierT
 
 			return {
 				to_account,
-				amount,
+				amount: Amount.wrap(amount.toString()),
 				rri,
 				type: ActionType.TOKEN_TRANSFER,
-				from_account,
+				from_account: AccountAddress.wrap(from_account),
 			}
 		},
 	)

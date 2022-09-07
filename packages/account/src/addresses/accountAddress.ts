@@ -10,7 +10,13 @@ import {
 	ValidateDataAndExtractPubKeyBytes,
 } from './abstractAddress'
 import { buffersEquals } from '@radixdlt/util'
-import { AccountAddressT, AddressTypeT } from './_types'
+import {
+	AbstractAddressT,
+	AccountAddressT,
+	AccountAddressWrapperT,
+	AddressTypeT,
+	ResourceIdentifierT, ValidatorAddressT,
+} from './_types'
 import { HRP, Network } from '@radixdlt/primitives'
 
 export const isAccountAddress = (
@@ -18,6 +24,14 @@ export const isAccountAddress = (
 ): something is AccountAddressT => {
 	if (!isAbstractAddress(something)) return false
 	return something.addressType === AddressTypeT.ACCOUNT
+}
+
+
+export const isAccountAddressWrapper = (
+	something: unknown,
+): something is AccountAddressWrapperT => {
+	const inspection = something as AbstractAddressT
+	return inspection && inspection.toString && !!inspection.toString()
 }
 
 const maxLength = 300 // arbitrarily chosen
@@ -88,9 +102,13 @@ const fromPublicKeyAndNetwork = (
 			)
 		})
 		._unsafeUnwrap({ withStackTrace: true })
-
-const fromString = (bechString: string): Result<AccountAddressT, Error> =>
-	AbstractAddress.fromString({
+const addressCache: { [key: string]: AccountAddressT } = {}
+const fromString = (bechString: string): Result<AccountAddressT, Error> => {
+	const address = addressCache[bechString]
+	if (address) {
+		return ok(address)
+	}
+	const result = AbstractAddress.fromString({
 		bechString,
 		addressType: AddressTypeT.ACCOUNT,
 		networkFromHRP,
@@ -99,6 +117,11 @@ const fromString = (bechString: string): Result<AccountAddressT, Error> =>
 		encoding,
 		maxLength,
 	})
+	if (result.isOk()) {
+		addressCache[bechString] = result.value
+	}
+	return result
+}
 
 const fromBuffer = (buffer: Buffer): Result<AccountAddressT, Error> => {
 	const fromBuf = (buf: Buffer): Result<AccountAddressT, Error> =>
@@ -149,8 +172,59 @@ const fromUnsafe = (
 		? fromString(input)
 		: fromBuffer(input)
 
+class AccountAddressWrapper implements AccountAddressWrapperT {
+	private address: AccountAddressT | null = null
+	private addressString: string | null = null
+
+	addressType: AddressTypeT.ACCOUNT = AddressTypeT.ACCOUNT
+
+	constructor(input: AddressOrUnsafeInput) {
+		if (isAccountAddress(input)) {
+			this.address = input
+		} else if (typeof input === 'string') {
+			this.addressString = input
+		} else {
+			this.address = fromBuffer(input)._unsafeUnwrap()
+		}
+	}
+
+	getAddress(): AccountAddressT {
+		if (this.address == null && this.addressString != null) {
+			this.address = fromString(this.addressString)._unsafeUnwrap()
+		}
+		return <AccountAddressT>this.address
+	}
+
+	getAddressString(): string {
+		if (this.addressString == null && this.address != null) {
+			this.addressString = this.address.toString()
+		}
+		return <string>this.addressString
+	}
+
+	toString(): string {
+		return this.getAddressString()
+	}
+
+	equals(other: AccountAddressWrapperT): boolean {
+		return (
+			this.getAddressString() === other.getAddressString() &&
+			this.getAddress().equals(other.getAddress())
+		)
+	}
+}
+
+const wrap = (input: AddressOrUnsafeInput): AccountAddressWrapper =>
+	new AccountAddressWrapper(input)
+
+const fromUnsafeLazy = (
+	input: AddressOrUnsafeInput,
+): Result<AccountAddressWrapper, Error> => ok(wrap(input))
+
 export const AccountAddress = {
 	isAccountAddress,
+	wrap,
 	fromUnsafe,
+	fromUnsafeLazy,
 	fromPublicKeyAndNetwork,
 }

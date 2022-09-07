@@ -60,10 +60,14 @@ const __create = (input: {
 		return same
 	},
 })
-
+const resourceCache: { [key: string]: ResourceIdentifierT } = {}
 const fromBech32String = (
 	bechString: string,
 ): Result<ResourceIdentifierT, Error> => {
+	let result = resourceCache[bechString]
+	if (result) {
+		return ok(result)
+	}
 	// const hrpSuffix = hrpBetanetSuffix // TODO make dependent on Network!
 
 	const decodingResult = Bech32.decode({ bechString, encoding, maxLength })
@@ -153,14 +157,14 @@ const fromBech32String = (
 		}
 	}
 
-	return ok(
-		__create({
-			hash: combinedData,
-			network,
-			name,
-			toString: () => bechString,
-		}),
-	)
+	result = __create({
+		hash: combinedData,
+		network,
+		name,
+		toString: () => bechString,
+	})
+	resourceCache[bechString] = result
+	return ok(result)
 }
 
 const validateCharsInName = (name: string): Result<string, Error> => {

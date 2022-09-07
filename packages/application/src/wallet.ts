@@ -90,11 +90,10 @@ const create = (
 			signingKeychain.deriveHWSigningKey(input).pipe(map(skToAccount)),
 
 		displayAddressForActiveHWAccountOnHWDeviceForVerification: (): Observable<void> =>
-			signingKeychain.__unsafeGetSigningKey().getPublicKeyDisplayOnlyAddress().pipe(mergeMap(
-				(): Observable<void> => {
-					return of(undefined)
-				})
-			),
+			signingKeychain
+				.__unsafeGetSigningKey()
+				.getPublicKeyDisplayOnlyAddress()
+				.pipe(mergeMap((): Observable<void> => of(undefined))),
 
 		observeActiveAccount,
 		observeAccounts: (): Observable<AccountsT> =>

@@ -23,19 +23,20 @@ import {
 import { pipe } from 'ramda'
 import { Result, ResultAsync } from 'neverthrow'
 
-const callAPIWith =
-	(call: OpenApiClientCall) =>
-	<M extends MethodName>(method: M) =>
-	<DecodedResponse>(
-		handleResponse: (
-			response: ReturnOfAPICall<M>,
-		) => Result<DecodedResponse, Error[]>,
-	) =>
-	(params: InputOfAPICall<M>, headers?: Record<string, string>): ResultAsync<DecodedResponse, Error[]> =>
-		pipe(
-			() => call(method, params, headers),
-			result => result.mapErr(e => [e]).andThen(handleResponse),
-		)()
+const callAPIWith = (call: OpenApiClientCall) => <M extends MethodName>(
+	method: M,
+) => <DecodedResponse>(
+	handleResponse: (
+		response: ReturnOfAPICall<M>,
+	) => Result<DecodedResponse, Error[]>,
+) => (
+	params: InputOfAPICall<M>,
+	headers?: Record<string, string>,
+): ResultAsync<DecodedResponse, Error[]> =>
+	pipe(
+		() => call(method, params, headers),
+		result => result.mapErr(e => [e]).andThen(handleResponse),
+	)()
 
 export const getAPI = pipe(
 	(call: OpenApiClientCall) => callAPIWith(call),
@@ -68,7 +69,9 @@ export const getAPI = pipe(
 			handleTransactionRulesResponse,
 		),
 		*/
-		buildTransaction: callAPI('transactionBuildPost')(handleBuildTransactionResponse),
+		buildTransaction: callAPI('transactionBuildPost')(
+			handleBuildTransactionResponse,
+		),
 		finalizeTransaction: callAPI('transactionFinalizePost')(
 			handleFinalizeTransactionResponse,
 		),

@@ -1,6 +1,12 @@
 import { UInt256 } from '@radixdlt/uint256'
 
 export type AmountT = UInt256
+export type AmountWrapperT = Readonly<{
+	// Bytes on hex format
+	getUInt(): UInt256
+	getString(): string
+	toString(): string
+}>
 
 export enum Network {
 	MAINNET = 'mainnet',

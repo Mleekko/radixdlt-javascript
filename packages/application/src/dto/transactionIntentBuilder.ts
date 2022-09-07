@@ -31,7 +31,7 @@ import {
 	isTransferTokensInput,
 	IntendedStakeTokens,
 	isStakeTokensInput,
-	IntendedUnstakeTokens
+	IntendedUnstakeTokens,
 } from '../actions'
 import { combine, err, ok, Result } from 'neverthrow'
 import {
@@ -44,6 +44,8 @@ import { Option } from 'prelude-ts'
 import { isAmount } from '../../../primitives'
 import { log, toObservableFromResult } from '../../../util'
 import { AccountT, MessageInTransaction } from '../_types'
+import {AccountAddress, AccountAddressWrapperT, isAccountAddressWrapper, isValidatorAddress} from '@radixdlt/account'
+import {isAmountWrapper} from "@radixdlt/primitives";
 
 type IntendedActionsFrom = Readonly<{
 	intendedActions: IntendedAction[]
@@ -55,7 +57,7 @@ export const singleRecipientFromActions = (
 	actions: UserAction[],
 ): Result<PublicKeyT, Error> => {
 	const others = flatMapAddressesOf({ actions })
-		.map(a => a.publicKey)
+		.map(a => a.getAddress().publicKey)
 		.filter(a => !a.equals(mine))
 
 	if (others.length > 1) {
@@ -109,9 +111,9 @@ export const isTransferTokensAction = (
 	const inspection = something as TransferTokensAction
 	return (
 		inspection.type === ActionType.TOKEN_TRANSFER &&
-		isAccountAddress(inspection.to_account) &&
-		isAccountAddress(inspection.from_account) &&
-		isAmount(inspection.amount) &&
+		isAccountAddressWrapper(inspection.to_account) &&
+		isAccountAddressWrapper(inspection.from_account) &&
+		isAmountWrapper(inspection.amount) &&
 		isResourceIdentifier(inspection.rri)
 	)
 }
@@ -123,7 +125,7 @@ export const isStakeTokensAction = (
 	return (
 		inspection.type === ActionType.STAKE_TOKENS &&
 		isAccountAddress(inspection.from_account) &&
-		isAccountAddress(inspection.to_validator) &&
+		isValidatorAddress(inspection.to_validator) &&
 		isAmount(inspection.amount)
 	)
 }
@@ -134,7 +136,7 @@ export const isUnstakeTokensAction = (
 	const inspection = something as UnstakeTokensAction
 	return (
 		inspection.type === ActionType.UNSTAKE_TOKENS &&
-		isAccountAddress(inspection.from_validator) &&
+		isValidatorAddress(inspection.from_validator) &&
 		isAccountAddress(inspection.to_account) &&
 		isAmount(inspection.amount)
 	)
@@ -147,12 +149,12 @@ export const getUniqueAddresses = (
 		includeFrom?: boolean
 		includeTo?: boolean
 	}>,
-): AccountAddressT[] => {
+): AccountAddressWrapperT[] => {
 	const action = input.action
 	const includeFrom = input.includeFrom ?? true
 	const includeTo = input.includeTo ?? true
 	if (isTransferTokensAction(action)) {
-		const addresses: AccountAddressT[] = []
+		const addresses: AccountAddressWrapperT[] = []
 		if (includeTo) {
 			addresses.push(action.to_account)
 		}
@@ -161,15 +163,15 @@ export const getUniqueAddresses = (
 		}
 		return addresses
 	} else if (isStakeTokensAction(action)) {
-		const addresses: AccountAddressT[] = []
+		const addresses: AccountAddressWrapperT[] = []
 		if (includeFrom) {
-			addresses.push(action.from_account)
+			addresses.push(AccountAddress.wrap(action.from_account))
 		}
 		return addresses
 	} else if (isUnstakeTokensAction(action)) {
-		const addresses: AccountAddressT[] = []
+		const addresses: AccountAddressWrapperT[] = []
 		if (includeFrom) {
-			addresses.push(action.to_account)
+			addresses.push(AccountAddress.wrap(action.to_account))
 		}
 		return addresses
 	} else {
@@ -183,10 +185,10 @@ export const flatMapAddressesOf = (
 		includeFrom?: boolean
 		includeTo?: boolean
 	}>,
-): AccountAddressT[] => {
+): AccountAddressWrapperT[] => {
 	const { actions, includeFrom, includeTo } = input
 	const flatMapped = actions.reduce(
-		(acc: AccountAddressT[], action: UserAction) => {
+		(acc: AccountAddressWrapperT[], action: UserAction) => {
 			const uniqueAddressOfAction = getUniqueAddresses({
 				action,
 				includeFrom,
@@ -194,7 +196,7 @@ export const flatMapAddressesOf = (
 			})
 			return acc.concat(...uniqueAddressOfAction)
 		},
-		[] as AccountAddressT[],
+		[] as AccountAddressWrapperT[],
 	)
 
 	const set = new Set<string>()
@@ -316,7 +318,10 @@ const create = (): TransactionIntentBuilderT => {
 							throw new Error('Not stake tokens input')
 						}
 					} else if (intermediateActionType === 'unstake') {
-						return IntendedUnstakeTokens.create(i as UnstakeTokensInput, from)
+						return IntendedUnstakeTokens.create(
+							i as UnstakeTokensInput,
+							from,
+						)
 					} else {
 						return err(
 							new Error(
@@ -400,8 +405,8 @@ const create = (): TransactionIntentBuilderT => {
 							message:
 								plaintextMessage !== undefined
 									? MessageEncryption.encodePlaintext(
-										plaintextMessage,
-									)
+											plaintextMessage,
+									  )
 									: undefined,
 						})
 					}

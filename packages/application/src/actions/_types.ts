@@ -5,8 +5,9 @@ import {
 	ValidatorAddressOrUnsafeInput,
 	ResourceIdentifierOrUnsafeInput,
 	ResourceIdentifierT,
+	AccountAddressWrapperT,
 } from '@radixdlt/account'
-import { AmountOrUnsafeInput, AmountT } from '@radixdlt/primitives'
+import {AmountOrUnsafeInput, AmountT, AmountWrapperT} from '@radixdlt/primitives'
 
 export enum ActionType {
 	TOKEN_TRANSFER = 'TokenTransfer',
@@ -56,9 +57,9 @@ export type ActionInput =
 // ####                         #####
 // ##################################
 export type TransferTokensProps = Readonly<{
-	to_account: AccountAddressT
-	from_account: AccountAddressT
-	amount: AmountT
+	to_account: AccountAddressWrapperT
+	from_account: AccountAddressWrapperT
+	amount: AmountWrapperT
 	rri: ResourceIdentifierT
 }>
 

@@ -3,7 +3,6 @@ import { PublicKey, PublicKeyT } from '@radixdlt/crypto'
 import { Encoding } from '../bech32'
 import {
 	AbstractAddress,
-	HRPFromNetwork,
 	isAbstractAddress,
 	NetworkFromHRP,
 } from './abstractAddress'
@@ -67,8 +66,13 @@ const fromPublicKeyAndNetwork = (
 		})
 		._unsafeUnwrap({ withStackTrace: true })
 
-const fromString = (bechString: string): Result<ValidatorAddressT, Error> =>
-	AbstractAddress.fromString({
+const validatorCache: { [key: string]: ValidatorAddressT } = {}
+const fromString = (bechString: string): Result<ValidatorAddressT, Error> => {
+	const address = validatorCache[bechString]
+	if (address) {
+		return ok(address)
+	}
+	const result = AbstractAddress.fromString({
 		bechString,
 		addressType: AddressTypeT.VALIDATOR,
 		typeguard: isValidatorAddress,
@@ -76,6 +80,11 @@ const fromString = (bechString: string): Result<ValidatorAddressT, Error> =>
 		encoding,
 		maxLength,
 	})
+	if (result.isOk()) {
+		validatorCache[bechString] = result.value
+	}
+	return result
+}
 
 const fromBuffer = (buffer: Buffer): Result<ValidatorAddressT, Error> => {
 	const fromBuf = (buf: Buffer): Result<ValidatorAddressT, Error> =>
